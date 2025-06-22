@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DEFEND AGAINST THE HACKERS</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    body {
+      background-color: #000;
+      color: #0f0;
+    }
+
+    h1, h2 {
+      text-align: center;
+      padding: 1rem;
+      font-size: 2rem;
+      text-shadow: 0 0 10px #0f0;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .active {
+      display: block;
+    }
+
+    #home button, #game-over button {
+      display: block;
+      margin: 1rem auto;
+      padding: 0.5rem 1rem;
+      background: #000;
+      color: #0f0;
+      border: 2px solid #0f0;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    #life-bar {
+      position: relative;
+      width: 80%;
+      height: 30px;
+      margin: 0 auto;
+      background: #400;
+      border: 2px solid #0f0;
+    }
+
+    #life-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 50%;
+      background: #0f0;
+      transition: width 0.2s;
+    }
+
+    #game {
+      position: relative;
+      width: 100%;
+      height: 80vh;
+      overflow: hidden;
+      border-top: 2px solid #0f0;
+    }
+
+    .letter {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      color: #0f0;
+      text-shadow: 0 0 10px #0f0;
+    }
+
+    #mid-line {
+      position: absolute;
+      top: 60%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #0f0;
+      opacity: 1;
+      z-index: 1;
+      box-shadow: 0 0 10px #0f0;
+    }
+
+    #score {
+      text-align: center;
+      font-size: 1.2rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="home" class="screen active">
+    <h1>DEFEND AGAINST THE HACKERS</h1>
+    <label style="display:block; text-align:center; margin-top:1rem">Upload your own .txt file</label>
+    <input type="file" id="txtFile" accept=".txt" style="display:block; margin: 1rem auto;">
+    <label style="display:block; text-align:center;">Set Base WPM:</label>
+    <input type="number" id="wpm" min="10" max="300" value="60" style="display:block; margin: 0.5rem auto;">
+    <button onclick="startGame(true)">Play - Random</button>
+    <button onclick="startGame(false)" disabled>Play - With Uploaded File</button>
+  </div>
+
+  <div id="game-screen" class="screen">
+    <div id="life-bar">
+      <div id="life-fill"></div>
+    </div>
+    <div id="score">Score: 0</div>
+    <div id="game">
+      <div id="mid-line"></div>
+    </div>
+  </div>
+
+  <div id="game-over" class="screen">
+    <h2>YOU GOT HACKED 💀 GAME OVER</h2>
+    <button onclick="goHome()">Back To Home</button>
+  </div>
+
+  <script>
+    const homeScreen = document.getElementById("home");
+    const gameScreen = document.getElementById("game-screen");
+    const game = document.getElementById("game");
+    const scoreDisplay = document.getElementById("score");
+    const lifeFill = document.getElementById("life-fill");
+    const midLine = document.getElementById("mid-line");
+    const gameOverScreen = document.getElementById("game-over");
+
+    const playWithFileBtn = document.querySelector('button[onclick="startGame(false)"]');
+    const fileInput = document.getElementById("txtFile");
+
+    // Disable play with file button until a file is uploaded
+    playWithFileBtn.disabled = true;
+
+    fileInput.addEventListener('change', () => {
+      playWithFileBtn.disabled = !fileInput.files.length;
+    });
+
+    let score = 0;
+    let life = 50;
+    let speed = 2;
+    let spawnInterval = 1500;
+    let spawnLoop;
+    let lettersSource = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    function startGame(isRandom) {
+      const wpm = parseInt(document.getElementById("wpm").value);
+      speed = wpm / 30;
+      spawnInterval = 60000 / wpm;
+
+      if (!isRandom && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          lettersSource = e.target.result.replace(/[^A-Za-z]/g, "").toUpperCase();
+          launchGame();
+        };
+        reader.readAsText(fileInput.files[0]);
+      } else if (!isRandom) {
+        // No file uploaded but tried to play with file
+        alert("Please upload a valid .txt file to play with custom letters.");
+      } else {
+        launchGame();
+      }
+    }
+
+    function launchGame() {
+      homeScreen.classList.remove("active");
+      gameScreen.classList.add("active");
+      score = 0;
+      life = 50;
+      scoreDisplay.textContent = `Score: ${score}`;
+      lifeFill.style.width = life + "%";
+      game.innerHTML = '<div id="mid-line"></div>';
+
+      spawnLoop = setInterval(() => {
+        spawnLetter();
+        speed += 0.05;
+        spawnInterval = Math.max(400, spawnInterval - 10);
+      }, spawnInterval);
+    }
+
+    function spawnLetter() {
+      const letter = document.createElement("div");
+      const char = lettersSource.charAt(Math.floor(Math.random() * lettersSource.length));
+      letter.textContent = char;
+      letter.classList.add("letter");
+      letter.style.left = `${Math.random() * 80 + 10}%`;
+
+      game.appendChild(letter);
+
+      let pos = 0;
+      const fall = setInterval(() => {
+        pos += speed;
+        letter.style.top = pos + "px";
+
+        if (letter.offsetTop >= game.offsetHeight) {
+          game.removeChild(letter);
+          clearInterval(fall);
+          loseLife();
+          updateScore(-200);
+        }
+      }, 16);
+
+      letter.dataset.char = char;
+      letter.dataset.interval = fall;
+    }
+
+    function updateScore(val) {
+      score += val;
+      scoreDisplay.textContent = `Score: ${score}`;
+    }
+    
+    function gainLife() {
+      life = Math.min(100, life + 5);
+      lifeFill.style.width = life + "%";
+    }
+
+    function loseLife() {
+      life = Math.max(0, life - 10);
+      lifeFill.style.width = life + "%";
+      if (life === 0) {
+        clearInterval(spawnLoop);
+        gameScreen.classList.remove("active");
+        gameOverScreen.classList.add("active");
+      }
+    }
+
+    function goHome() {
+      gameOverScreen.classList.remove("active");
+      homeScreen.classList.add("active");
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (!gameScreen.classList.contains("active")) return;
+
+      const letters = document.querySelectorAll(".letter");
+      let hit = false;
+      letters.forEach((l) => {
+        const rect = l.getBoundingClientRect();
+        const midY = midLine.getBoundingClientRect().top;
+        const diff = Math.abs(rect.top - midY);
+
+        if (l.textContent.toLowerCase() === e.key.toLowerCase()) {
+          if (diff < 20) {
+            updateScore(100);
+          } else {
+            updateScore(50);
+          }
+          clearInterval(l.dataset.interval);
+          game.removeChild(l);
+          gainLife();
+          hit = true;
+        }
+      });
+
+      if (!hit && /^[a-zA-Z]$/.test(e.key)) {
+        updateScore(-200);
+        loseLife();
+      }
+    });
+  </script>
+</body>
+</html>
